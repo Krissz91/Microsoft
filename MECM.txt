@@ -7,7 +7,7 @@
     SQL Server 2019 + SSMS telepítő: letöltve
     MECM telepítő: letöltve
 
-1️. Előkészületek a szerveren (DC)
+1. Előkészületek a szerveren (DC)
    1.1. Ellenőrizd a következő szerepkörök és szolgáltatások meglétét:
    Telepítsd ezeket PowerShell-ben:
 
@@ -32,28 +32,28 @@ New-NetIPAddress -IPAddress 192.168.10.1 -DefaultGateway 192.168.10.1 -PrefixLen
 Disable-NetAdapterBinding -Name Internal -ComponentID ms_tcpip6
 Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses 192.168.10.1
 
-2️.SQL Server 2019 Developer Edition telepítése
+2.SQL Server 2019 Developer Edition telepítése
   MSSQL Forrás: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
   SSMS Forrás: https://learn.microsoft.com/en-us/ssms/install/install
-2.1️. Telepítő elindítása
+2.1. Telepítő elindítása
        Futtasd: SQL2019-SSEI-Dev.exe
        Válaszd: "Custom" opciót, hogy részletesen konfigurálhasd
        A letöltés után elindul az SQL Server Installation Center
 
-2.2️. Új SQL kiszolgáló telepítése
+2.2. Új SQL kiszolgáló telepítése
        Kattints bal oldalon: Installation
        Majd válaszd: New SQL Server stand-alone installation or add features to an existing installation
 
-2.3️. Telepítés beállítása
+2.3. Telepítés beállítása
        Product Key: Developer (automatikusan kiválasztva)
        License Terms: pipáld be az "I accept...", majd Next
        Microsoft Update: válaszd "Use Microsoft Update to check for updates", majd Next
 
-2.4️. Előfeltételek ellenőrzése (Install Rules)
+2.4. Előfeltételek ellenőrzése (Install Rules)
        Az „Install Rules” ellenőrzi, hogy minden előfeltétel teljesül-e
        Ha nincs hiba, kattints: Next
 
-2.5️. Funkciók kiválasztása (Feature Selection)
+2.5. Funkciók kiválasztása (Feature Selection)
      Pipáld be a következőket:
        Database Engine Services
        Full-Text and Semantic Extractions for Search
@@ -62,7 +62,7 @@ Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses 192.168.10.1
        Client Tools SDK
      Ezután: Next
 
-2.6️. Példány beállítása (Instance Configuration)
+2.6. Példány beállítása (Instance Configuration)
        Válaszd: Named instance
        Használhatod az alapértelmezett nevet: MECMLAB, vagy amit szeretnél
        Az Instance ID automatikusan kitöltődik
@@ -100,7 +100,7 @@ New-NetFirewallRule -DisplayName "SQL Server Port 1433" -Direction Inbound -Prot
 
 3. MECM (Configuration Manager) telepítése
 
-3.0️. Fájlkicsomagolás
+3.0. Fájlkicsomagolás
      1. Futtasd a fájlt: MCM_Configmgr_2403.exe
      2. Megkérdezi, hogy hová szeretnéd kicsomagolni a tartalmát
        (pl. C:\MECM_Setup vagy D:\MECM – lehetőleg rövid elérési út)
@@ -111,7 +111,7 @@ Ez létrehoz egy teljes telepítési mappát, benne a valódi telepítőkkel, p�
   prereqchk.exe -> előfeltétel-ellenőrző eszköz
   Redist, Tools, Docs stb.
 
-3.1️. Prerequisites letöltése
+3.1. Prerequisites letöltése
      Futtasd a telepítőt:
      <MECM letöltött mappa>\SMSSETUP\BIN\X64\Setup.exe
      Első ablak – Before You Begin:

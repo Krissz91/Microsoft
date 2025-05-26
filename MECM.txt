@@ -253,32 +253,66 @@ Tippek a telepítés után
 
 6.  Device Collection létrehozása (gépcsoportok)
 
-6.1. MECM Console → Assets and Compliance → Device Collections
-6.2. Jobb klikk → Create Device Collection
+6.1. MECM Console -> Assets and Compliance -> Device Collections
+6.2. Jobb klikk -> Create Device Collection
 6.3. Collection name: pl. Marketing Devices vagy Windows 11 Gépek
 6.4. Limiting collection: válaszd pl. All Systems (ez az alap)
-6.5. Next → Add Rule → Query Rule → Add
+6.5. Next -> Add Rule -> Query Rule → Add
 6.6. Add meg:
        Name: Marketing query
-       Edit Query Statement → Criteria → Add
-         Válaszd ki pl.: System Resource → System Group Name
+       Edit Query Statement -> Criteria -> Add
+         Válaszd ki pl.: System Resource -> System Group Name
          Add hozzá: OU Name is like "Marketing" (ha OU-k alapján akarod)
          vagy: Operating System Name contains "Windows 11" (ha OS alapján)
-6.7. Finish → Next → Close
+6.7. Finish -> Next -> Close
 
 Cél: gépeket logikusan szétválogatni (OS, hely, szerepkör alapján)
 
+Ha a Limiting collection-nél 0 van akkor a következöket még be kell állítani
+
+Megoldás: AD User Discovery engedélyezése MECM-ben
+Ez fogja betölteni a tartományi felhasználókat és csoportokat a MECM adatbázisába.
+
+Lépések:
+  1. MECM Console megnyitása
+  2. Menj ide: Administration → Hierarchy Configuration → Discovery Methods
+  3. Keresd meg: Active Directory User Discovery
+  4. Jobb klikk -> Properties
+  5. Pipáld ki: Enable Active Directory User Discovery
+  6. Kattints az Add gombra
+  7. Válaszd:
+       Location: Add meg a tartomány vagy egy adott OU nevét (pl. DC=office,DC=local, vagy OU=Marketing,DC=office,DC=local)
+       Használj egy fiókot, ami olvasási joggal rendelkezik az AD-ben (pl. Office\Administrator)
+  8. OK -> Apply -> OK
+  9. Ezután: Jobb klikk a Active Directory User Discovery-re -> Run Full Discovery Now
+
+Ugyanez szükséges a gépekhez is:
+  Active Directory System Discovery (gépekhez)
+  Active Directory Group Discovery (csoporttagsághoz)
+Futtasd le azokat is, hasonlóan.
+
+Mennyi idő, mire megjelennek?
+  Általában pár perc, de a Discovery Schedule miatt lehet akár 10–15 perc is.
+  Ellenőrizheted a log fájlokat is:
+    C:\Program Files\Microsoft Configuration Manager\Logs\
+    Pl.: adsysdis.log, adusrdis.log
+
+Ezután:
+Ha lefutott a Discovery:
+  A Limiting Collection-ök (pl. All Users, All Systems) már nem fognak 0-t mutatni.
+  Újra létrehozhatod a Collectiont, és már látni fogja a felhasználókat is.
+
 7. User Collection létrehozása (felhasználói csoportok pl. HR, Marketing)
 
-7.1. Assets and Compliance → User Collections
-7.2. Jobb klikk → Create User Collection
+7.1. Assets and Compliance -> User Collections
+7.2. Jobb klikk -> Create User Collection
 7.3. Collection name: pl. HR Users
 7.4. Limiting collection: All Users
-7.5. Add Rule → Direct Rule (ha konkrét usert akarsz kiválasztani)
+7.5. Add Rule -> Direct Rule (ha konkrét usert akarsz kiválasztani)
        Keresd meg: Minta Béla, Minta János
 7.6. VAGY: Query Rule, ha csoport alapján:
-       System Resource → User Group Name → contains HR vagy Marketing
-7.7. Finish → Next → Close
+       System Resource -> User Group Name -> contains HR vagy Marketing
+7.7. Finish -> Next -> Close
 
 8. Szoftverterítés (pl. Notepad++, VLC, Office)
 
@@ -287,17 +321,17 @@ Előkészület:
   Töltsd le a telepítőt (pl. .exe vagy .msi)
   Tedd bele a mappába
 MECM-ben:
-  1. Software Library → Application Management → Applications
-  2. Jobb klikk → Create Application
+  1. Software Library -> Application Management -> Applications
+  2. Jobb klikk -> Create Application
   3. Type: Windows Installer (*.msi), ha van (jobb, mert automatikusan kitölti az adatokat)
        Ha .exe: válaszd Manually specify
   4. Name: Notepad++
   5. Telepítőútvonal: pl. \\SRV-MECM\Sources\Applications\Notepad++\npp.8.6.4.Installer.exe
   6. Install command: pl. npp.8.6.4.Installer.exe /S (silent telepítés)
   7. Detection method: pl. fájl vagy registry alapján
-  8. Distribution Points → Add → \\SRV-MECM (vagy amit használsz)
+  8. Distribution Points -> Add -> \\SRV-MECM (vagy amit használsz)
   9. Deployment:
-       Right click az alkalmazásra → Deploy
+       Right click az alkalmazásra -> Deploy
        Collection: pl. Windows 11 Devices
        Deployment type: Available (Software Centerben látható) vagy Required (automatikusan települ)
 

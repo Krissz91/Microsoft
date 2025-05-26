@@ -1,0 +1,354 @@
+# MECM Telepítési Útmutató – Labor környezet (Windows Server 2019 + SQL + MECM)
+  Kiindulási állapot
+    Windows Server 2019 (pl. SRV-MECM) – tartományvezérlő (DC) + MECM is ezen lesz
+    AD tartomány: office.local
+    Kliensgépek: Windows 10 (Marketing) és Windows 11 (HR) (SMB-t ne felejtsd el!)
+    Felhasználók: Minta Bela, Minta Janos
+    SQL Server 2019 + SSMS telepítő: letöltve
+    MECM telepítő: letöltve
+
+1️. Előkészületek a szerveren (DC)
+   1.1. Ellenőrizd a következő szerepkörök és szolgáltatások meglétét:
+   Telepítsd ezeket PowerShell-ben:
+
+Install-WindowsFeature -Name Web-Windows-Auth, Web-ISAPI-Ext, Web-Metabase, BITS, RDC, NET-Framework-Features, Web-Asp-Net, Web-WMI, UpdateServices-UI, RSAT-Feature-Tools, Web-Dyn-Compression -IncludeAllSubFeature
+Restart-Computer
+Get-WindowsFeature | Where-Object {$_.Installed -eq "Installed"}
+
+Ez a PowerShell-parancs előkészíti a Windows Server 2019-et a Microsoft Endpoint Configuration Manager (MECM) telepítésére azáltal, hogy feltelepít számos szükséges Windows szerepkört és szolgáltatást.
+Mit tartalmaz?
+  IIS (Web Server): A MECM webes szolgáltatásaihoz (pl. Management Point, WSUS)
+  BITS (Background Intelligent Transfer Service): Kliens oldali tartalomletöltésekhez
+  .NET Framework: Az alkalmazás logika és a WSUS működéséhez
+  Web-WMI, ISAPI, Metabase: IIS-komponensek, amelyekre a MECM szerepkörök támaszkodnak
+  Remote Differential Compression (RDC): Hatékony fájlterjesztéshez (pl. DP -> kliens)
+  WSUS UI: A Windows Update Services felügyeleti felülete
+  RSAT eszközök: Távadminisztrációs eszközök a tartománykezeléshez
+
+1.2. Állíts be egy static IP címet és ellenőrizd, hogy DNS megfelelően működik.
+
+Rename-NetAdapter -Name Ethernet -NewName Internal
+New-NetIPAddress -IPAddress 192.168.10.1 -DefaultGateway 192.168.10.1 -PrefixLength 24 -InterfaceIndex 4
+Disable-NetAdapterBinding -Name Internal -ComponentID ms_tcpip6
+Set-DnsClientServerAddress -InterfaceIndex 4 -ServerAddresses 192.168.10.1
+
+2️.SQL Server 2019 Developer Edition telepítése
+  MSSQL Forrás: https://www.microsoft.com/en-us/sql-server/sql-server-downloads
+  SSMS Forrás: https://learn.microsoft.com/en-us/ssms/install/install
+2.1️. Telepítő elindítása
+       Futtasd: SQL2019-SSEI-Dev.exe
+       Válaszd: "Custom" opciót, hogy részletesen konfigurálhasd
+       A letöltés után elindul az SQL Server Installation Center
+
+2.2️. Új SQL kiszolgáló telepítése
+       Kattints bal oldalon: Installation
+       Majd válaszd: New SQL Server stand-alone installation or add features to an existing installation
+
+2.3️. Telepítés beállítása
+       Product Key: Developer (automatikusan kiválasztva)
+       License Terms: pipáld be az "I accept...", majd Next
+       Microsoft Update: válaszd "Use Microsoft Update to check for updates", majd Next
+
+2.4️. Előfeltételek ellenőrzése (Install Rules)
+       Az „Install Rules” ellenőrzi, hogy minden előfeltétel teljesül-e
+       Ha nincs hiba, kattints: Next
+
+2.5️. Funkciók kiválasztása (Feature Selection)
+     Pipáld be a következőket:
+       Database Engine Services
+       Full-Text and Semantic Extractions for Search
+       Client Tools Connectivity
+       Client Tools Backward Compatibility
+       Client Tools SDK
+     Ezután: Next
+
+2.6️. Példány beállítása (Instance Configuration)
+       Válaszd: Named instance
+       Használhatod az alapértelmezett nevet: MECMLAB, vagy amit szeretnél
+       Az Instance ID automatikusan kitöltődik
+       Kattints: Next
+
+2.7. Szolgáltatásfiókok (Server Configuration)
+       Alapértelmezett fiókbeállításokat meghagyhatod
+       Kattints: Next
+
+2.8. Adatbázis motor beállításai (Database Engine Configuration)
+        Authentication Mode: válaszd a Mixed Mode-ot
+          -> Adj meg egy sa jelszót (pl. P@ssw0rd123)
+        Kattints: Add Current User (így a saját Windows felhasználódat is hozzáadja az SQL adminokhoz)
+        Ezután: Next
+
+2.9. Telepítés
+       Végül: Install
+       A telepítés néhány percet igénybe vehet
+       Befejezés után: Close
+
+2.10. SSMS (SQL Server Management Studio) telepítése
+     Telepítsd, majd indítsd el.
+
+2.11. Ellenőrzés (SSMS-ben)
+        Indítsd el a SQL Server Management Studio-t (SSMS)
+        Jelentkezz be:
+        Server name: localhost\INSTANCE (pl. SRV-MECM\MECMLAB)
+        Authentication: Windows vagy SQL Server Authentication (sa felhasználóval)
+        Encrypt: Optional
+        Hozz létre próbaként egy adatbázist (TestDB), hogy ellenőrizd a működést
+
+2.12. Portok engedélyezése a tűzfalon:
+
+New-NetFirewallRule -DisplayName "SQL Server Port 1433" -Direction Inbound -Protocol TCP -LocalPort 1433 -Action Allow
+
+3. MECM (Configuration Manager) telepítése
+
+3.0️. Fájlkicsomagolás
+     1. Futtasd a fájlt: MCM_Configmgr_2403.exe
+     2. Megkérdezi, hogy hová szeretnéd kicsomagolni a tartalmát
+       (pl. C:\MECM_Setup vagy D:\MECM – lehetőleg rövid elérési út)
+     3. Kattints: Extract
+
+Ez létrehoz egy teljes telepítési mappát, benne a valódi telepítőkkel, például:
+  SMSSETUP\BIN\X64\Setup.exe → ez a fő telepítő
+  prereqchk.exe -> előfeltétel-ellenőrző eszköz
+  Redist, Tools, Docs stb.
+
+3.1️. Prerequisites letöltése
+     Futtasd a telepítőt:
+     <MECM letöltött mappa>\SMSSETUP\BIN\X64\Setup.exe
+     Első ablak – Before You Begin:
+       Kattints: Next
+     Ha nem enged tovább akkor látogas el ide.
+       https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver17
+     töltsd le a legújabbat pl az én esetemben
+        Download Microsoft ODBC Driver 18 for SQL Server (x64)
+          Futtasd: msodbcsql18.msi
+          Pipáld be az elfogadást (I agree...)
+          Kattints: Install
+          Várd meg, amíg lefut
+          Ha kész -> Finish
+     Ha megvolt akkor kezdjük elölről -> Setup.exe telepítést
+
+3.2. Available Setup Options
+       Maradjon csak az
+         Install a Configuration Manager primary site
+         Next
+
+3.3. Product Key és License
+       Product Key: hagyhatod Evaluation módban (labornál tökéletes)
+       Kattints: Next
+       
+    License Agreement: pipáld be az "I accept these License Terms..." mezőket
+    Next
+
+3.4. Prerequisite Downloads
+       Válaszd: "Download required files"
+       Adj meg egy helyi mappát (pl. C:\MECM_Prereqs)
+       Next
+
+  (Letölti azokat a fájlokat, amik kellenek – néhány perc lehet.)
+
+3.5. Server Language Selection
+     English -> pipa
+     Next
+
+3.6. Site and Installation Settings
+     Site Code = LAB
+     Site Name = Laboratory MECM
+     Next
+
+3.7. Primary Site Installation
+     Install the primary site as a stand-alone site
+     Next
+
+3.8. Database Information
+     SQL Server name (FQDN) hadjuk békén pl. SRV-MECM.Office.local (hostname.domain)
+     Instance name = MECMLAB
+     Mivel te az SQL telepítéskor a MECMLAB nevű Named Instance-t használtad (nem a default MSSQLSERVER-t), ezért ezt meg KELL adnod:
+     Database name-et is hadjad
+     Service Broker Port = 4022 (Azt is hadjad)
+     Next
+     Ha nem megy tovabb akkor nyisuk meg a SQL Server Configuration Manager
+       SQL Server Network Configuration -> kattints a Protocols for MECMLAB-re majd a TCP/IP-t allitsd enabled-re
+       Majd ismet jobb klikk -> Properties -> IP Addresses es legalul
+
+IPAll
+  TCP Dynamic Ports:    49157   ← EZT TÖRÖLD
+  TCP Port:             1433    ← EZT ADD MEG
+
+   Meg ez is segithet a poweshell-ben: New-NetFirewallRule -DisplayName "Allow SQL Broker TCP 4022" -Direction Inbound -Protocol TCP -LocalPort 4022 -Action Allow
+   Vagy ez: Win+R -> ird be services.msc -> Keresd meg SQL Server Browser -> Running legyen es ne disabled -> Properties -> Automata
+
+3.9. Database Information
+      Next
+
+3.10. SMS Provider
+      SMS Provider = az a szerver, ahol az admin konzol kapcsolódik az adatbázishoz
+      Hagyhatod az aktuális gépet (SRV-MECM.office.local)
+      Next
+
+3.11. Client Computer Communication Settings
+      Configure the communication method on each site system role
+      Labor kornyezetben a Clients will use HTTPS when they have a valid PKI certificate and HTTPS-enabled site roles are available is pipald ki.
+
+3.12. Site System Role
+      Next
+
+3.13. Diagnostic and Usage Data
+      Next
+
+3.14. Service Connection Point Setup
+      Yes, let's get connected = SRV-MECM.Office.local
+      Next
+
+3.15. Settins Summary
+      Next
+
+3.16. Prerequisite Checks
+       Ha hiányzik valami, figyelmeztet (pl. nincs telepítve WSUS, nincs engedélyezve BITS stb.)
+       A legtöbb csak figyelmeztetés; ha minden zöld vagy sárga
+       Begin Install
+       Ha nem jo akkor vissz kell menni javitan majd a Run check-re kattintani.
+       Problema lehet pl. Win+R -> services.msc -> SQL Server (MECMLAB) -> Kattints jobb klikk → Properties → Log On fül -> This account = Office\Administrator -> Add meg a jelszót is -> Katt: OK, majd Restart a szolgáltatáson
+       Vagy probald pl Töltsd le a legfrissebb Windows ADK = https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install -> adksetup.exe -> Válaszd ki minimum: Deployment Tools es USMT (User State Migration Tool)
+       es töltsd le a WinPE Add-on-t: https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install -> adkwinpesetup.exe -> Next -> Next -> Accept -> Install
+
+Befejezés:
+  Ha minden sikeres, kattints: Close
+  Indítsd el: Configuration Manager Console (Start menüből vagy \Microsoft Endpoint Manager\AdminConsole\bin\Microsoft.ConfigurationManagement.exe)
+
+Tippek a telepítés után
+  Console első indításakor néha egy kis várakozás kell, míg betölt
+  Ha nem működne a Management Point, ellenőrizd IIS-ben, SQL-ben a kapcsolódást
+  Ha kliensgépeket akarsz kezelni: telepítsd rájuk a ccmsetup.exe-t (lásd később)
+
+4. MECM első indítás és konfiguráció
+
+4.1. Indítsd el: Configuration Manager Console
+     Software Library, Assets and Compliance, stb. elérhetők
+
+4.2. Kliens telepítő előkészítése
+     Administration -> Site Configuration -> Sites
+       Válaszd ki a site-ot, majd Client Installation Settings > Client Push Installation
+     Enable automatic site-wide client push installation
+     Accounts ful kattints a csillagra majd ad hozza a felhasznalokat.
+
+5. MECM kliens telepítése a gépekre
+
+5.1. Manuálisan:
+     \\SRV-MECM\SMS_LAB\Client\ccmsetup.exe
+     – ezt futtasd Win10/11 gépen rendszergazdaként
+
+5.2. Automatikusan:
+     MECM Console-ban: Assets and Compliance -> Devices -> Add Resource -> System Discovery
+     Majd: jobb klikk a gépen > Install Client
+     Ha vannak mar gepek akkor az azt jelent, hogy nincs szukseg az Add Resource-re.
+       Menj: Assets and Compliance -> Devices
+       Keresd ki a SRV-MECM vagy más gépet
+       Jobb klikk rá -> Client Installation -> Install Client
+       Pipáld ki:
+         Allow the client software to be installed on domain controller
+         Always install the client software
+         Install the client software from a specified site
+       OK
+      Ezután a gépen elkezdődik a kliens telepítése – az állapot pár perc múlva frissül (ha nem, jobb klikk -> "Refresh")
+
+6.  Device Collection létrehozása (gépcsoportok)
+
+6.1. MECM Console → Assets and Compliance → Device Collections
+6.2. Jobb klikk → Create Device Collection
+6.3. Collection name: pl. Marketing Devices vagy Windows 11 Gépek
+6.4. Limiting collection: válaszd pl. All Systems (ez az alap)
+6.5. Next → Add Rule → Query Rule → Add
+6.6. Add meg:
+       Name: Marketing query
+       Edit Query Statement → Criteria → Add
+         Válaszd ki pl.: System Resource → System Group Name
+         Add hozzá: OU Name is like "Marketing" (ha OU-k alapján akarod)
+         vagy: Operating System Name contains "Windows 11" (ha OS alapján)
+6.7. Finish → Next → Close
+
+Cél: gépeket logikusan szétválogatni (OS, hely, szerepkör alapján)
+
+7. User Collection létrehozása (felhasználói csoportok pl. HR, Marketing)
+
+7.1. Assets and Compliance → User Collections
+7.2. Jobb klikk → Create User Collection
+7.3. Collection name: pl. HR Users
+7.4. Limiting collection: All Users
+7.5. Add Rule → Direct Rule (ha konkrét usert akarsz kiválasztani)
+       Keresd meg: Minta Béla, Minta János
+7.6. VAGY: Query Rule, ha csoport alapján:
+       System Resource → User Group Name → contains HR vagy Marketing
+7.7. Finish → Next → Close
+
+8. Szoftverterítés (pl. Notepad++, VLC, Office)
+
+Előkészület:
+  Hozz létre egy megosztott mappát: \\SRV-MECM\Sources\Applications\Notepad++
+  Töltsd le a telepítőt (pl. .exe vagy .msi)
+  Tedd bele a mappába
+MECM-ben:
+  1. Software Library → Application Management → Applications
+  2. Jobb klikk → Create Application
+  3. Type: Windows Installer (*.msi), ha van (jobb, mert automatikusan kitölti az adatokat)
+       Ha .exe: válaszd Manually specify
+  4. Name: Notepad++
+  5. Telepítőútvonal: pl. \\SRV-MECM\Sources\Applications\Notepad++\npp.8.6.4.Installer.exe
+  6. Install command: pl. npp.8.6.4.Installer.exe /S (silent telepítés)
+  7. Detection method: pl. fájl vagy registry alapján
+  8. Distribution Points → Add → \\SRV-MECM (vagy amit használsz)
+  9. Deployment:
+       Right click az alkalmazásra → Deploy
+       Collection: pl. Windows 11 Devices
+       Deployment type: Available (Software Centerben látható) vagy Required (automatikusan települ)
+
+9. OS Deployment (haladó – de kezdhetsz vele is laborként)
+
+Szükséges:
+  WDS szerepkör
+  Boot image, install.wim, task sequence
+  Capture image (ha saját image-t használsz)
+
+1. Töltsd le a Windows ISO-t (pl. Win 10 / 11)
+2. Mount -> másold ki az install.wim-et
+3. Software Library -> Operating Systems → Operating System Images
+4. Add image → Add Distribution Point
+5. Task Sequences → Create Task Sequence → "Install an existing image package"
+6. Add PXE boot és boot image
+
+Ez már komolyabb konfiguráció, külön is szívesen segítek benne ha elkezded!
+
+10. Compliance Settings / Baseline (pl. jelszabályok, GPO-szintű kontroll)
+
+10.1. Assets and Compliance → Compliance Settings → Configuration Items
+10.2. Jobb klikk → Create Configuration Item
+10.3. Add meg:
+        Pl. "Minimum password length ≥ 10"
+10.4. Supported Platforms → válaszd ki az OS verziókat
+10.5. Settings → New → Setting Type: Windows Security Setting
+        Path: Security Settings → Account Policies → Password Policy → Minimum password length
+        Set minimum value: 10
+10.6. Finish → majd hozz létre egy Baseline
+10.7. Deploy-olhatod eszközökre vagy user collectionre
+
+=======================================
+
+    Kliens gépek hozza adasa a MECM-hez
+    A MECM nem veszi át automatikusan az összes gépet az Active Directory-ból – ehhez Discovery módszerek szükségesek.
+    Ehhez állítsuk be az Active Directory System Discovery-t:
+      1. Nyisd meg a MECM konzolt
+      2. Menj: Administration → Hierarchy Configuration → Discovery Methods
+      3. Kattints duplán: Active Directory System Discovery
+      4. Pipáld ki: Enable Active Directory System Discovery
+      5. Kattints a Browse... gombra, és add hozzá azt az OU-t vagy konténert, ahol a gépek vannak
+      6. Állítsd be a schedule-t (pl. minden nap, vagy kézzel indítható)
+      7. OK -> majd jobb klikk a Discovery-n: Run Full Discovery Now
+
+    A Software Center csak akkor jelenik meg, ha a MECM kliens szoftver sikeresen települt a gépre.
+    Hogyan ellenőrzöd ezt?
+      1. A kliens gépen (Win10/11) menj: C:\Windows\CCM\ → ha ez a mappa létezik, az jó jel
+      2. Futtasd: control smscfgrc -> ez megnyitja a Configuration Manager Properties panelt – ha ez működik, akkor a kliens fent van
+      3. Software Center:
+           Start menü -> írd be: Software Center
+           Ha nem találod: várj néhány percet a telepítés után
+
+folyt köv

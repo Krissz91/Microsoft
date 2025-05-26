@@ -100,7 +100,7 @@ New-NetFirewallRule -DisplayName "SQL Server Port 1433" -Direction Inbound -Prot
 
 3. MECM (Configuration Manager) telepítése
 
-3.0. Fájlkicsomagolás
+3.0️. Fájlkicsomagolás
      1. Futtasd a fájlt: MCM_Configmgr_2403.exe
      2. Megkérdezi, hogy hová szeretnéd kicsomagolni a tartalmát
        (pl. C:\MECM_Setup vagy D:\MECM – lehetőleg rövid elérési út)
@@ -257,7 +257,7 @@ Tippek a telepítés után
 6.2. Jobb klikk -> Create Device Collection
 6.3. Collection name: pl. Marketing Devices vagy Windows 11 Gépek
 6.4. Limiting collection: válaszd pl. All Systems (ez az alap)
-6.5. Next -> Add Rule -> Query Rule → Add
+6.5. Next -> Add Rule -> Query Rule -> Add
 6.6. Add meg:
        Name: Marketing query
        Edit Query Statement -> Criteria -> Add
@@ -268,6 +268,21 @@ Tippek a telepítés után
 
 Cél: gépeket logikusan szétválogatni (OS, hely, szerepkör alapján)
 
+7. User Collection létrehozása (felhasználói csoportok pl. HR, Marketing)
+
+7.1. Assets and Compliance -> User Collections
+7.2. Jobb klikk -> Create User Collection
+7.3. Collection name: pl. HR Users
+7.4. Limiting collection: All Users
+7.5. Add Rule -> Direct Rule (ha konkrét usert akarsz kiválasztani)
+       Keresd meg: Minta Béla, Minta János
+         Resource class: User Resource
+         Attribute name: User Group Name
+         Value: Minta János
+7.6. VAGY: Query Rule, ha csoport alapján:
+       System Resource -> User Group Name -> contains HR vagy Marketing
+7.7. Next -> Next -> Close
+
 Ha a Limiting collection-nél 0 van akkor a következöket még be kell állítani
 
 Megoldás: AD User Discovery engedélyezése MECM-ben
@@ -275,7 +290,7 @@ Ez fogja betölteni a tartományi felhasználókat és csoportokat a MECM adatb�
 
 Lépések:
   1. MECM Console megnyitása
-  2. Menj ide: Administration → Hierarchy Configuration → Discovery Methods
+  2. Menj ide: Administration -> Hierarchy Configuration -> Discovery Methods
   3. Keresd meg: Active Directory User Discovery
   4. Jobb klikk -> Properties
   5. Pipáld ki: Enable Active Directory User Discovery
@@ -301,18 +316,6 @@ Ezután:
 Ha lefutott a Discovery:
   A Limiting Collection-ök (pl. All Users, All Systems) már nem fognak 0-t mutatni.
   Újra létrehozhatod a Collectiont, és már látni fogja a felhasználókat is.
-
-7. User Collection létrehozása (felhasználói csoportok pl. HR, Marketing)
-
-7.1. Assets and Compliance -> User Collections
-7.2. Jobb klikk -> Create User Collection
-7.3. Collection name: pl. HR Users
-7.4. Limiting collection: All Users
-7.5. Add Rule -> Direct Rule (ha konkrét usert akarsz kiválasztani)
-       Keresd meg: Minta Béla, Minta János
-7.6. VAGY: Query Rule, ha csoport alapján:
-       System Resource -> User Group Name -> contains HR vagy Marketing
-7.7. Finish -> Next -> Close
 
 8. Szoftverterítés (pl. Notepad++, VLC, Office)
 
@@ -344,9 +347,9 @@ Szükséges:
 
 1. Töltsd le a Windows ISO-t (pl. Win 10 / 11)
 2. Mount -> másold ki az install.wim-et
-3. Software Library -> Operating Systems → Operating System Images
-4. Add image → Add Distribution Point
-5. Task Sequences → Create Task Sequence → "Install an existing image package"
+3. Software Library -> Operating Systems -> Operating System Images
+4. Add image -> Add Distribution Point
+5. Task Sequences → Create Task Sequence -> "Install an existing image package"
 6. Add PXE boot és boot image
 
 Ez már komolyabb konfiguráció, külön is szívesen segítek benne ha elkezded!
@@ -358,10 +361,10 @@ Ez már komolyabb konfiguráció, külön is szívesen segítek benne ha elkezde
 10.3. Add meg:
         Pl. "Minimum password length ≥ 10"
 10.4. Supported Platforms → válaszd ki az OS verziókat
-10.5. Settings → New → Setting Type: Windows Security Setting
-        Path: Security Settings → Account Policies → Password Policy → Minimum password length
+10.5. Settings -> New → Setting Type: Windows Security Setting
+        Path: Security Settings -> Account Policies → Password Policy → Minimum password length
         Set minimum value: 10
-10.6. Finish → majd hozz létre egy Baseline
+10.6. Finish -> majd hozz létre egy Baseline
 10.7. Deploy-olhatod eszközökre vagy user collectionre
 
 =======================================
